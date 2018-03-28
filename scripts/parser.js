@@ -54,8 +54,15 @@ class TokenStream{
 		this.toklist=[];
 	}
 	getToken(){
+		var ret=this.peekToken();
+		if(ret!=null){
+			++this.pos;
+		}
+		return ret;
+	}
+	peekToken(){
 		if(this.pos<this.toklist.length){
-			return tokList[pos++];//value incremented after it is passed along
+			return this.toklist[this.pos];
 		}else{
 			for(var idx = 0; idx < this.regexpList.length; ++idx){
 				var pttn = this.regexpList[idx];
@@ -67,14 +74,22 @@ class TokenStream{
 					if(pos == 0){
 						this.strpos = endpos;
 						if(this.postProcess!==undefined){
-							var pair = this.postProcess(val);
-							if(pair!=null){
+							var pair;
+							if(this.postProcess instanceof TokenFilter){
+								pair = this.postProcess.apply(idx, val);
+							}else{
+								pair = this.postProcess(idx, val);
+							}
+							if(pair instanceof Array){
 								idx=pair[0];
 								val=pair[1];
+							}else if(pair === -1){
+								//if post-processing gives us -1,
+								//we skip this token and move onto the next
+								return this.peekToken();
 							}
 						}
 						this.toklist.push(new Token(idx,val));
-						++this.pos;
 						return this.toklist.slice(-1)[0];
 					}
 				}
@@ -82,7 +97,78 @@ class TokenStream{
 		}
 		return null;
 	}
+	rewind(val=1){
+		if(val>=1){
+			this.pos-=val;
+		}
+		if(val=0){
+			this.pos=0;
+		}
+	}
 }
+
+var numberMap = {
+	"a" : [3,1],
+	"one" : [3,1],
+	"two" : [3,2],
+	"three" : [3,3],
+	"four" : [3,4],
+	"five" : [3,5],
+	"six" : [3,6],
+	"seven" : [3,7],
+	"eight" : [3,8],
+	"nine" : [3,9],
+	"ten" : [3,10],
+	"eleven" : [3,11],
+	"twelve" : [3,12]
+}
+
+class TokenFilter{
+	constructor(excludedIndicies, listOfMaps, listOfFunctions){
+		this.excludedIndicies=excludedIndicies;
+		this.listOfMaps=listOfMaps;
+		this.listOfFunctions=listOfFunctions;
+	}
+	apply(idx, val){
+		if(this.excludedIndicies.indexOf(idx)>-1){
+			//skip this token
+			return -1;
+		}
+		for(var list of this.listOfMaps){
+			if(list[val]!==undefined){
+				return list[val];
+			}
+		}
+		if(this.listOfFunctions[idx]!==undefined){
+			return this.listOfFunctions[idx](idx, val);
+		}
+		return null;
+	}
+}
+
+function ordinalStripper(idx, val){
+	return [idx, /[1-9][0-9]+/.exec(val)[0]];
+}
+
+var standardFilter = new TokenFilter([0],[numberMap],[undefined,ordinalStripper]);
+
+function whiteSpaceFilter(idx, val){
+	if(idx===0){
+		return -1;
+	}else{
+		return null;
+	}
+}
+
+var whiteSpaceRegEx = /^[ \t\r\n]+/;
+var ordinalRegEx = /^[1-9][0-9]*[A-z]+/;
+var wordRegEx = /^[A-z]+/;
+var numberRegEx = /^[1-9][0-9]*/;
+
+var testStream = new TokenStream(
+	"23rd a bend Or  43",
+	[whiteSpaceRegEx,ordinalRegEx,wordRegEx,numberRegEx],
+	standardFilter);
 
 class Parser {
 	constructor(){
