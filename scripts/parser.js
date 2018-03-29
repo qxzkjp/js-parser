@@ -104,14 +104,14 @@ class TokenStream{
 		if(val>=1){
 			this.pos-=val;
 		}
-		if(val=0){
+		if(val==0){
 			this.pos=0;
 		}
 	}
 	getUpperLimit(){
 		//we can't possibly have more tokens than chars in the string
 		//might replace this with a tighter bound later
-		return str.length;
+		return this.str.length;
 	}
 	savePos(){
 		return this.pos;
@@ -261,9 +261,9 @@ class GrammarToken{
 	}
 	checkTokenString(tokStr){
 		if(!this.isFinal){
-			return false;
+			return null;
 		}else{
-			return this.treeMap.contains(tokstr);
+			return this.treeMap.contains(tokStr);
 		}
 	}
 }
@@ -316,13 +316,14 @@ class TreeMap{
 				stack.push(current[token.value])
 				current=current[token.value];
 			}else{
+				tokStr.rewind(); //un-pop previous token
 				break;
 			}
 		}
 		while(current[""]==undefined){
 			current=stack.pop();
 			tokStr.rewind();
-			if(stack==[]){
+			if(stack.length==0){
 				current=undefined;
 				break;
 			}
@@ -352,10 +353,12 @@ var nounMap=new TreeMap([
 	"alice",
 	"bob",
 	"jane",
-	"john"
+	"john",
+	"man",
+	"woman"
 ]);
 
-var varbMap=new TreeMap([
+var verbMap=new TreeMap([
 	"hit",
 	"bite",
 	"kick",
@@ -407,9 +410,9 @@ Vstar = new GrammarToken("V*","modified verb")
 naturalRules=[];
 naturalRules.push(new GrammarRule([S],[VP,DP]));
 naturalRules.push(new GrammarRule([VP],[DP,Vstar]));
-naturalRules.push(new GrammarRule([Vstar],[Adv,V]));
+naturalRules.push(new GrammarRule([Vstar],[Adv,VP]));
 naturalRules.push(new GrammarRule([Vstar],[V]));
-naturalRules.push(new GrammarRule([NP],[Adj,N]));
+naturalRules.push(new GrammarRule([NP],[Adj,NP]));
 naturalRules.push(new GrammarRule([NP],[N]));
 naturalRules.push(new GrammarRule([DP],[D,NP]));
 naturalRules.push(new GrammarRule([DP],[D]));
@@ -423,8 +426,87 @@ class Parser {
 		this.tokenStream=tokStr;
 		this.tree=new TreeNode;
 		this.activeNode=null;
+		this.currentLength=0;
 	}
-	parse(){
-		
+	parse(token){
+		if(token==undefined){
+			token=this.rootToken;
+			this.tokenStream.loadPos(0);
+		}
+		var ruleset = getTokenRules(token,this.rules);
+		var node = new TreeNode();
+		var oldPos = this.tokenStream.savePos();
+		var success;
+		var oldLength=this.length;
+		for(rule of ruleset){
+			var newLength = oldLength + rule.rhs.length -1;
+			if(newLength>this.tokenStream.getUpperLimit()){
+				continue;
+			}
+			var tokenList=rule.rhs;
+			success=true;
+			for(var subtoken of tokenList){
+				var tokenPos=this.tokenStream.savePos();
+				var ret;
+				if(subtoken.isFinal){
+					var finalValue = subtoken.checkTokenString(this.tokenStream);
+					if(finalValue==null){
+						success=false;
+						break;
+					}else{
+						var ret=new TreeNode();
+						ret.attrib["startPos"]=tokenPos;
+						ret.attrib["endPos"]=this.tokenStream.savePos();
+						ret.attrib["type"]=subtoken.id;
+						ret.attrib["index"]=finalValue;
+					}
+				}else{
+					ret = this.parse(subtoken);
+					if(ret==null){
+						success=false;
+						break;
+					}
+				}
+				node.append(ret);
+			}
+			if(!success){
+				this.tokenStream.loadPos(oldPos);
+				continue;
+			}else{
+				this.currentLength = newLength;
+				break;
+			}
+		}
+		if(!success){
+			return null;
+		}else{
+			node.attrib["startPos"]=oldPos;
+			node.attrib["endPos"]=this.tokenStream.savePos();
+			node.attrib["type"]=token.id;
+			return node;
+		}
 	}
 }
+
+function compareRulesByRhs(first, second){
+	if(first.rhs.length > second.rhs.length){
+		return -1;
+	}else if(first.rhs.length < second.rhs.length){
+		return 1
+	}else{
+		return 0;
+	}
+}
+
+function getTokenRules(token, rules){
+	ret=[];
+	for(rule of rules){
+		if(rule.lhs.length==1 && rule.lhs[0]==token){
+			ret.push(rule);
+		}
+	}
+	ret.sort(compareRulesByRhs);
+	return ret;
+}
+
+var naturalParser=new Parser(standardStreamFactory("the dog bite the man"),naturalRules,S)
