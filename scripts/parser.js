@@ -37,6 +37,9 @@ class Token {
 		this.type=type;
 		this.value=data;
 	}
+	equals(token){
+		return (this.type == token.type) && (this.value == token.value);
+	}
 }
 
 class TokenStream{
@@ -105,22 +108,54 @@ class TokenStream{
 			this.pos=0;
 		}
 	}
+	getUpperLimit(){
+		//we can't possibly have more tokens than chars in the string
+		//might replace this with a tighter bound later
+		return str.length;
+	}
+	savePos(){
+		return this.pos;
+	}
+	loadPos(val){
+		this.pos=val;
+	}
 }
 
+var TOK_WSP = 0;
+var TOK_ORD = 1;
+var TOK_WRD = 2;
+var TOK_NUM = 3;
+var TOK_PCT = 4;
+
 var numberMap = {
-	"a" : [3,1],
-	"one" : [3,1],
-	"two" : [3,2],
-	"three" : [3,3],
-	"four" : [3,4],
-	"five" : [3,5],
-	"six" : [3,6],
-	"seven" : [3,7],
-	"eight" : [3,8],
-	"nine" : [3,9],
-	"ten" : [3,10],
-	"eleven" : [3,11],
-	"twelve" : [3,12]
+	"a" : [TOK_NUM,1],
+	"one" : [TOK_NUM,1],
+	"two" : [TOK_NUM,2],
+	"three" : [TOK_NUM,3],
+	"four" : [TOK_NUM,4],
+	"five" : [TOK_NUM,5],
+	"six" : [TOK_NUM,6],
+	"seven" : [TOK_NUM,7],
+	"eight" : [TOK_NUM,8],
+	"nine" : [TOK_NUM,9],
+	"ten" : [TOK_NUM,10],
+	"eleven" : [TOK_NUM,11],
+	"twelve" : [TOK_NUM,12]
+}
+
+var ordinalMap = {
+	"first" : [TOK_ORD,1],
+	"second" : [TOK_ORD,2],
+	"third" : [TOK_ORD,3],
+	"fourth" : [TOK_ORD,4],
+	"fifth" : [TOK_ORD,5],
+	"sixth" : [TOK_ORD,6],
+	"seventh" : [TOK_ORD,7],
+	"eighth" : [TOK_ORD,8],
+	"ninth" : [TOK_ORD,9],
+	"tenth" : [TOK_ORD,10],
+	"eleventh" : [TOK_ORD,11],
+	"twelfth" : [TOK_ORD,12]
 }
 
 class TokenFilter{
@@ -158,7 +193,11 @@ function ordinalStripper(idx, val){
 	return [idx, /[1-9][0-9]+/.exec(val)[0]];
 }
 
-var standardFilter = new TokenFilter([0],[numberMap],[undefined,ordinalStripper], true);
+
+var tokenValuators=[];
+tokenValuators[TOK_ORD]=ordinalStripper;
+
+var standardFilter = new TokenFilter([TOK_WSP],[numberMap, ordinalMap],tokenValuators, true);
 
 function whiteSpaceFilter(idx, val){
 	if(idx===0){
@@ -172,20 +211,218 @@ var whiteSpaceRegEx = /^[ \t\r\n]+/;
 var ordinalRegEx = /^[1-9][0-9]*[A-z]+/;
 var wordRegEx = /^[A-z]+/;
 var numberRegEx = /^[1-9][0-9]*/;
+var punctuationRegEx = /^[,;:.!?/\\[\]()"'@]+/;
+
+var standardRegEx = [];
+standardRegEx[TOK_WSP]=whiteSpaceRegEx;
+standardRegEx[TOK_ORD]=ordinalRegEx;
+standardRegEx[TOK_WRD]=wordRegEx;
+standardRegEx[TOK_NUM]=numberRegEx;
+standardRegEx[TOK_PCT]=punctuationRegEx;
 
 var testStream = new TokenStream(
-	"23rd three FIVE bEnd Or  43",
-	[whiteSpaceRegEx,ordinalRegEx,wordRegEx,numberRegEx],
+	"23rd fourth three FIVE bEnd Or  43",
+	standardRegEx,
 	standardFilter);
 
+function standardStreamFactory(str){
+	return new TokenStream(
+	str,
+	standardRegEx,
+	standardFilter);
+}
+
+class GrammarRule{
+	constructor(lhs, rhs){
+		if(lhs.length>1){
+			throw new error("Parser currently only supports context-free rules");
+		}
+		if(lhs.length<1){
+			throw new error("Grammar rule must have a left hand side");
+		}
+		this.lhs=lhs;
+		this.rhs=rhs;
+	}
+}
+
+class GrammarToken{
+	constructor(id, displayName, treeMap){
+		this.id=id;
+		this.displayName=displayName;
+		if(treeMap!==undefined){
+			this.isFinal=true;
+			this.treeMap=treeMap;
+		}else{
+			this.isFinal=false;
+		}
+	}
+	isFinal(){
+		return this.isFinal;
+	}
+	checkTokenString(tokStr){
+		if(!this.isFinal){
+			return false;
+		}else{
+			return this.treeMap.contains(tokstr);
+		}
+	}
+}
+
+class TreeMap{
+	constructor(nameList){
+		this.tree=[];
+		for(var idx in nameList){
+			this.addIndex(nameList[idx],parseInt(idx));
+		}
+	}
+	addIndex(name, idx){
+		var words=name.split(" ");
+		var stack=this.tree;
+		for(var word of words){
+			if(stack[word]===undefined){
+				stack[word]=[];
+			}
+			stack=stack[word];
+		}
+		if(idx instanceof Array){
+			if(stack[""]===undefined){
+				stack[""]=idx;
+			}else{
+				stack[""]=stack[""].concat(idx);
+			}
+		}else{
+			if(stack[""]===undefined){
+				stack[""]=[idx];
+			}else{
+				stack[""].push(idx);
+			}
+		}
+	}
+	addSynonym(name, nameInMap){
+		var idx = this.contains(nameInMap);
+		if(!(idx instanceof Array)){
+			return false;
+		}
+		this.addIndex(name, idx);
+	}
+	contains(tokStr){
+		//check if a token string has a name in the list
+		var stack=[];
+		var current=this.tree;
+		var oldPos=tokStr.savePos();
+		while(tokStr.peekToken()!=null){
+			var token = tokStr.getToken();
+			if(current[token.value]!==undefined){
+				stack.push(current[token.value])
+				current=current[token.value];
+			}else{
+				break;
+			}
+		}
+		while(current[""]==undefined){
+			current=stack.pop();
+			tokStr.rewind();
+			if(stack==[]){
+				current=undefined;
+				break;
+			}
+		}
+		if(current!=undefined){
+			return current[""];
+		}else{
+			return null;
+		}
+	}
+}
+
+var names = new TreeMap([
+	"ravenous bugblatter beast of traal",
+	"ravenous bugblatter beast of traal during the night time",
+	"ford prefect",
+	"tricia marie mcmillan",
+	"zaphod beeblebrox",
+	"slartibartfast"
+]);
+names.addSynonym("trillian",standardStreamFactory("tricia marie mcmillan"));
+names.addSynonym("president of the galaxy",standardStreamFactory("zaphod beeblebrox"));
+
+var nounMap=new TreeMap([
+	"cat",
+	"dog",
+	"alice",
+	"bob",
+	"jane",
+	"john"
+]);
+
+var varbMap=new TreeMap([
+	"hit",
+	"bite",
+	"kick",
+	"kiss"
+]);
+
+var determinerMap = new TreeMap([
+	"the",
+	"a",
+	"an",
+	"he",
+	"she",
+	"it",
+	"his",
+	"her",
+	"its"
+]);
+
+var adjectiveMap = new TreeMap([
+	"red",
+	"blue",
+	"hot",
+	"cold",
+	"big",
+	"little",
+	"rough",
+	"smooth"
+]);
+
+var adverbMap = new TreeMap([
+	"quickly",
+	"slowly",
+	"roughly",
+	"smoothly"
+]);
+
+S = new GrammarToken("S","sentence");
+VP = new GrammarToken("VP","verb phrase");
+NP = new GrammarToken("NP","noun phrase");
+DP = new GrammarToken("DP","determiner phrase");
+V = new GrammarToken("V","verb", verbMap);
+N = new GrammarToken("N","noun", nounMap);
+D = new GrammarToken("D","determiner", determinerMap);
+Adj = new GrammarToken("Adj","adjective",adjectiveMap);
+Adv = new GrammarToken("Adv","adverb",adverbMap);
+Vstar = new GrammarToken("V*","modified verb")
+//Nstar = new GrammarToken("N*","modified noun")
+
+naturalRules=[];
+naturalRules.push(new GrammarRule([S],[VP,DP]));
+naturalRules.push(new GrammarRule([VP],[DP,Vstar]));
+naturalRules.push(new GrammarRule([Vstar],[Adv,V]));
+naturalRules.push(new GrammarRule([Vstar],[V]));
+naturalRules.push(new GrammarRule([NP],[Adj,N]));
+naturalRules.push(new GrammarRule([NP],[N]));
+naturalRules.push(new GrammarRule([DP],[D,NP]));
+naturalRules.push(new GrammarRule([DP],[D]));
+naturalRules.push(new GrammarRule([DP],[NP]));
+
 class Parser {
-	constructor(){
-		this.stacks=[];
-		this.tokenLists=[];
-		this.rules=[];
-		this.tokenStream;
-		this.tree;
-		this.activeNode;
+	constructor(tokStr, ruleList, rootToken){
+		this.stacks = [];
+		this.rules = ruleList;
+		this.rootToken = rootToken;
+		this.tokenStream=tokStr;
+		this.tree=new TreeNode;
+		this.activeNode=null;
 	}
 	parse(){
 		
