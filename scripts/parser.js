@@ -124,12 +124,16 @@ var numberMap = {
 }
 
 class TokenFilter{
-	constructor(excludedIndicies, listOfMaps, listOfFunctions){
+	constructor(excludedIndicies, listOfMaps, listOfFunctions, caseInsensitive){
 		this.excludedIndicies=excludedIndicies;
 		this.listOfMaps=listOfMaps;
 		this.listOfFunctions=listOfFunctions;
+		this.caseInsensitive=caseInsensitive;
 	}
 	apply(idx, val){
+		if(this.caseInsensitive){
+			val=val.toLowerCase();
+		}
 		if(this.excludedIndicies.indexOf(idx)>-1){
 			//skip this token
 			return -1;
@@ -142,7 +146,11 @@ class TokenFilter{
 		if(this.listOfFunctions[idx]!==undefined){
 			return this.listOfFunctions[idx](idx, val);
 		}
-		return null;
+		if(this.caseInsensitive){
+			return [idx,val];
+		}else{
+			return null;
+		}
 	}
 }
 
@@ -150,7 +158,7 @@ function ordinalStripper(idx, val){
 	return [idx, /[1-9][0-9]+/.exec(val)[0]];
 }
 
-var standardFilter = new TokenFilter([0],[numberMap],[undefined,ordinalStripper]);
+var standardFilter = new TokenFilter([0],[numberMap],[undefined,ordinalStripper], true);
 
 function whiteSpaceFilter(idx, val){
 	if(idx===0){
@@ -166,7 +174,7 @@ var wordRegEx = /^[A-z]+/;
 var numberRegEx = /^[1-9][0-9]*/;
 
 var testStream = new TokenStream(
-	"23rd a bend Or  43",
+	"23rd three FIVE bEnd Or  43",
 	[whiteSpaceRegEx,ordinalRegEx,wordRegEx,numberRegEx],
 	standardFilter);
 
