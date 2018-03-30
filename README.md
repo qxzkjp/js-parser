@@ -21,7 +21,7 @@ the tree by running ```parser.parse()```.
 ```initialToken```: a ```GrammarToken``` object which is the left-hand side of 
 at least one of the rules in ```ruleSet```
 
-### other methods
+#### other methods
 
 ```changeString(str)```: reset the parser and change the string underlying the 
 token string. Takes a plain text string which is passed to the underlying token 
@@ -29,7 +29,7 @@ string.
 
 ```naturalParser``` is provided as an example of a parser.
 
-## GrammarRule
+### GrammarRule
 
 A representation of a grammar rule, in the form ```LHS=>RHS```. A new grammar 
 rule is constructed by calling ```new GrammarRule(lhs,rhs)```, where lhs and 
@@ -38,7 +38,7 @@ rhs are both arrays of ```GrammarToken``` objects.
 ```naturalRules``` is provided as an example of how to set up a list of 
 ```GrammarRule```s.
 
-## GrammarToken
+### GrammarToken
 
 A ```GrammarToken``` object represents an abstract grammatical token, such as a 
 verb, noun, or verb phrase. ```GrammarToken```s are either non-final, meaning 
@@ -48,7 +48,7 @@ tokens have a set of representations associated to them in the form of a
 
 A token is constructed by calling ```new GrammarToken(id, displayName, treeMap)```.
 
-### parameters
+#### parameters
 
 ```id```: a short name for the token, like VP for a verb phrase, or Adj for an 
 adjective.  
@@ -56,7 +56,7 @@ adjective.
 ```treeMap```: a ```TreeMap``` object representing all of the possible 
 realisations of the token.
 
-## TreeMap
+### TreeMap
 
 A ```TreeMap``` object stores a list of (possibly multi-word) names, and checks 
 a token string for the longest name at its current position.
@@ -67,18 +67,18 @@ text names.
 ```determinerMap```, ```verbMap```, ```nounMap```, ```adjectiveMap``` and 
 ```adverbMap``` are provided as examples of tree maps.
 
-### Other methods
+#### Other methods
 
 ```contains(tokStr)``` checks the token string for a name contained in the tree map.
 
-## TokenStream
+### TokenStream
 
 A ```TokenStream``` object takes a plain text string, and splits it into tokens 
 in a user-defined way.
 
 Create with ```new TokenStream(string, regExList, tokenFilter)```.
 
-### parameters
+#### parameters
 
 ```string```: the underlying plain text string.  
 ```regExList```: an array of regexes representing the different token 
@@ -95,7 +95,7 @@ ordinals, words, numbers and punctuation. The variables ```TOK_WSP```,
 ```TOK_ORD```, ```TOK_WRD```, ```TOK_NUM``` and ```TOK_PCT``` are provided as 
 global variables to aid human readability.
 
-### Other methods
+#### Other methods
 
 ```changeString(str)```: resets the stream and changes the underlying string to 
 ```str```.
@@ -107,7 +107,7 @@ puts the stream back to the beginning.
 ```savePos()```: returns the stream's current position.  
 ```loadPos(n)```: sets the stream's current position to ```n```.
 
-## TokenFilter
+### TokenFilter
 
 A token filter filters and mutates tokens parsed to put them into an easier to 
 process form. Create one with 
@@ -115,7 +115,7 @@ process form. Create one with
     new TokenFilter(excludedIndicies, listOfMaps,
                     listOfFunctions, caseInsensitive)
 
-### Parameters
+#### Parameters
 
 ```excludedIndicies```: an array of integers representing categories of token 
 that are to be ignored by the tokeniser.  
