@@ -166,6 +166,7 @@ var TOK_PCT = 4;
 
 var numberMap = {
 	"a" : [TOK_NUM,1],
+	"an" : [TOK_NUM,1],
 	"one" : [TOK_NUM,1],
 	"two" : [TOK_NUM,2],
 	"three" : [TOK_NUM,3],
@@ -434,6 +435,16 @@ var adverbMap = new TreeMap([
 	"smoothly"
 ]);
 
+numberMap = {
+	"contains" : function(tokStr){
+		if(tokStr.peekToken().type==TOK_NUM){
+			return [tokStr.getToken().val];
+		}else{
+			return null;
+		}
+	}
+}
+
 S = new GrammarToken("S","sentence");
 VP = new GrammarToken("VP","verb phrase");
 NP = new GrammarToken("NP","noun phrase");
@@ -441,6 +452,7 @@ DP = new GrammarToken("DP","determiner phrase");
 V = new GrammarToken("V","verb", verbMap);
 N = new GrammarToken("N","noun", nounMap);
 D = new GrammarToken("D","determiner", determinerMap);
+Num = new GrammarToken("D","determiner (number)", numberMap);
 Adj = new GrammarToken("Adj","adjective",adjectiveMap);
 Adv = new GrammarToken("Adv","adverb",adverbMap);
 Vstar = new GrammarToken("V*","modified verb")
@@ -454,6 +466,7 @@ naturalRules.push(new GrammarRule([Vstar],[V]));
 naturalRules.push(new GrammarRule([NP],[Adj,NP]));
 naturalRules.push(new GrammarRule([NP],[N]));
 naturalRules.push(new GrammarRule([DP],[D,NP]));
+naturalRules.push(new GrammarRule([DP],[Num,NP]));
 naturalRules.push(new GrammarRule([DP],[D]));
 naturalRules.push(new GrammarRule([DP],[NP]));
 
