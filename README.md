@@ -13,10 +13,7 @@ new Parser(tokenStream,ruleSet,initialToken)
 ```
 
 creates a parser object, which generates a syntax tree from a token stream. get 
-the tree by running
-```
-parser.parse()
-```.
+the tree by running ```parser.parse()```.
 
 #### parameters
 ```tokenStream```: an instance of the ```TokenStream``` class (see below).  
