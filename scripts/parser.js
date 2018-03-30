@@ -603,4 +603,7 @@ function displayString(str){
 
 $(document).ready(function(){
 	displayString("the big man roughly bites the little dog");
+	$("#parseButton").on("click",function(evt){
+		displayString($("#parseBox").val());
+	});
 });
