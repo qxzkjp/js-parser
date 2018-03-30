@@ -28,7 +28,10 @@ class TreeNode {
 		this.parent=null;
 	}
 	at(idx){
-		return this.subnode[idx];
+		return this.subnodes[idx];
+	}
+	count(){
+		return this.subnodes.length;
 	}
 }
 
@@ -526,6 +529,9 @@ class Parser {
 			node.attrib["startPos"]=oldPos;
 			node.attrib["endPos"]=this.tokenStream.savePos();
 			node.attrib["type"]=token.id;
+			if(node.count()==1){
+				node = node.at(0);
+			}
 			return node;
 		}
 	}
