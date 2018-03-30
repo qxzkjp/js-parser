@@ -306,17 +306,29 @@ class GrammarToken{
 	}
 }
 
+class GrammarProperties{
+	constructor(idx, attr={}){
+		this.index=idx;
+		this.attr=cloneAttr(attr);
+	}
+	clone(){
+		return new GrammarProperties(this.idx, this.attr);
+	}
+}
+
 class TreeMap{
-	constructor(nameList){
+	constructor(nameList, att={}, streamFactory=standardStreamFactory){
 		this.tree=[];
+		this.streamFactory=streamFactory;
 		for(var idx in nameList){
-			this.addIndex(nameList[idx],parseInt(idx));
+			this.addIndex(nameList[idx],new GrammarProperties(parseInt(idx),att));
 		}
 	}
 	addIndex(name, idx){
-		var words=name.split(" ");
 		var stack=this.tree;
-		for(var word of words){
+		var tokStr=this.streamFactory(name);
+		while(tokStr.peekToken()!=null){
+			var word = tokStr.getToken().value;
 			if(stack[word]===undefined){
 				stack[word]=[];
 			}
@@ -336,12 +348,12 @@ class TreeMap{
 			}
 		}
 	}
-	addSynonym(name, nameInMap){
-		var idx = this.contains(nameInMap);
+	addSynonym(name, nameInMap, att={}){
+		var idx = this.contains(this.streamFactory(nameInMap));
 		if(!(idx instanceof Array)){
 			return false;
 		}
-		this.addIndex(name, idx);
+		this.addIndex(name, new GrammarProperties(idx,att));
 	}
 	contains(tokStr){
 		//check if a token string has a name in the list
@@ -382,8 +394,25 @@ var names = new TreeMap([
 	"zaphod beeblebrox",
 	"slartibartfast"
 ]);
-names.addSynonym("trillian",standardStreamFactory("tricia marie mcmillan"));
-names.addSynonym("president of the galaxy",standardStreamFactory("zaphod beeblebrox"));
+names.addSynonym("trillian","tricia marie mcmillan");
+names.addSynonym("president of the galaxy","zaphod beeblebrox");
+
+var thirdPersonSingularPresent = {
+	"subjectNumber":1,
+	"subjectPerson":3,
+	"tense":"present"
+}
+
+var firstPersonSingularPresent = {
+	"subjectNumber":1,
+	"subjectPerson":1,
+	"tense":"present"
+}
+
+var thirdPersonSingularNoun = {
+	"number":1,
+	"person":3
+}
 
 var nounMap=new TreeMap([
 	"cat",
@@ -394,16 +423,19 @@ var nounMap=new TreeMap([
 	"john",
 	"man",
 	"woman"
-]);
+],thirdPersonSingularNoun);
 
 var verbMap=new TreeMap([
 	"hit",
 	"bite",
 	"kick",
 	"kiss"
-]);
+],firstPersonSingularPresent);
 
-verbMap.addSynonym("bites", standardStreamFactory("bite"));
+verbMap.addSynonym("hits", "hit",thirdPersonSingularPresent);
+verbMap.addSynonym("bites", "bite",thirdPersonSingularPresent);
+verbMap.addSynonym("kicks", "kick",thirdPersonSingularPresent);
+verbMap.addSynonym("kisses", "kiss",thirdPersonSingularPresent);
 
 var determinerMap = new TreeMap([
 	"the",
@@ -425,14 +457,18 @@ var adjectiveMap = new TreeMap([
 	"big",
 	"little",
 	"rough",
-	"smooth"
+	"smooth",
+	"soft",
+	"gentle"
 ]);
 
 var adverbMap = new TreeMap([
 	"quickly",
 	"slowly",
 	"roughly",
-	"smoothly"
+	"smoothly",
+	"softly",
+	"gently"
 ]);
 
 numberMap = {
@@ -451,8 +487,8 @@ NP = new GrammarToken("NP","noun phrase");
 DP = new GrammarToken("DP","determiner phrase");
 V = new GrammarToken("V","verb", verbMap);
 N = new GrammarToken("N","noun", nounMap);
-D = new GrammarToken("D","determiner", determinerMap);
-Num = new GrammarToken("D","determiner (number)", numberMap);
+D = new GrammarToken("Det","determiner", determinerMap);
+Num = new GrammarToken("Det","determiner (number)", numberMap);
 Adj = new GrammarToken("Adj","adjective",adjectiveMap);
 Adv = new GrammarToken("Adv","adverb",adverbMap);
 Vstar = new GrammarToken("V*","modified verb")
@@ -598,7 +634,11 @@ function stringifyGrammarTree(tree, tokStr){
 function displayString(str){
 	naturalParser.changeString(str)
 	out=naturalParser.parse();
-	document.getElementById("parseString").innerHTML=stringifyGrammarTree(out,naturalParser.tokenStream);
+	if(out!=null){
+		document.getElementById("parseString").innerHTML=stringifyGrammarTree(out,naturalParser.tokenStream);
+	}else{
+		document.getElementById("parseString").innerHTML='<span class="parseError">could not parse string</span>';
+	}
 }
 
 $(document).ready(function(){
@@ -607,3 +647,13 @@ $(document).ready(function(){
 		displayString($("#parseBox").val());
 	});
 });
+
+function cloneAttr(attr){
+	var ret={};
+	for(key in attr){
+		if(attr.hasOwnProperty(key)){
+			ret[key]=attr[key];
+		}
+	}
+	return ret;
+}
