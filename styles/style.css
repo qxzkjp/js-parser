@@ -1,23 +1,18 @@
-.grammar:after,.grammar:before{
+.grammar::after,.grammar::before{
 	color:gray;
 }
-.grammar.outer:before{
+.grammar.inner::before{
 	content: "[";
 }
 
-.grammar.outer:after{
+.grammar.inner::after{
 	content: "]";
 }
-.grammar.VP:after{
-	content: "VP";
-	vertical-align: sub;
-    font-size: x-small;
-}
 
-.grammar.DP:after{
-	content: "DP";
-	vertical-align: sub;
-    font-size: x-small;
+.grammar.outer::after{
+	content:attr(data-type);
+	vertical-align:sub;
+	font-size: x-small;
 }
 
 body {

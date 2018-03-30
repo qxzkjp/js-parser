@@ -33,9 +33,14 @@ class TreeNode {
 }
 
 class Token {
-	constructor(type, data){
+	constructor(type, data, trueStr, skipped){
 		this.type=type;
 		this.value=data;
+		this.trueStr=trueStr;
+		this.skipped=skipped;
+		if(trueStr!==undefined){
+			this.length=trueStr.length;
+		}
 	}
 	equals(token){
 		return (this.type == token.type) && (this.value == token.value);
@@ -55,6 +60,14 @@ class TokenStream{
 		this.str=str;
 		this.pos=0;
 		this.toklist=[];
+		this.trueTokList=[];
+	}
+	changeString(str){
+		this.strpos=0;
+		this.str=str;
+		this.pos=0;
+		this.toklist=[];
+		this.trueTokList=[];
 	}
 	getToken(){
 		var ret=this.peekToken();
@@ -72,6 +85,7 @@ class TokenStream{
 				var match=pttn.exec(this.str.substring(this.strpos));
 				if(match!=null){
 					var val=match[0];
+					var origVal=val;
 					var pos = match["index"];
 					var endpos = this.strpos + pos + val.length;
 					if(pos == 0){
@@ -89,9 +103,11 @@ class TokenStream{
 							}else if(pair === -1){
 								//if post-processing gives us -1,
 								//we skip this token and move onto the next
+								this.trueTokList.push(new Token(idx,val,origVal,true));
 								return this.peekToken();
 							}
 						}
+						this.trueTokList.push(new Token(idx,val,origVal,false));
 						this.toklist.push(new Token(idx,val));
 						return this.toklist.slice(-1)[0];
 					}
@@ -117,7 +133,25 @@ class TokenStream{
 		return this.pos;
 	}
 	loadPos(val){
-		this.pos=val;
+		if(val<=this.toklist.length){
+			this.pos=val;
+		}else{
+			while(this.getToken()!=null && this.toklist.length<val);
+		}
+	}
+	getTokenStringPos(idx){
+		var count=0;
+		var length=0;
+		for(var token of this.trueTokList){
+			if(count==idx && token.skipped==false){
+				break;
+			}
+			length+=token.length;
+			if(token.skipped!=true){
+				++count;
+			}
+		}
+		return length;
 	}
 }
 
@@ -365,6 +399,8 @@ var verbMap=new TreeMap([
 	"kiss"
 ]);
 
+verbMap.addSynonym("bites", standardStreamFactory("bite"));
+
 var determinerMap = new TreeMap([
 	"the",
 	"a",
@@ -410,7 +446,7 @@ Vstar = new GrammarToken("V*","modified verb")
 naturalRules=[];
 naturalRules.push(new GrammarRule([S],[VP,DP]));
 naturalRules.push(new GrammarRule([VP],[DP,Vstar]));
-naturalRules.push(new GrammarRule([Vstar],[Adv,VP]));
+naturalRules.push(new GrammarRule([Vstar],[Adv,Vstar]));
 naturalRules.push(new GrammarRule([Vstar],[V]));
 naturalRules.push(new GrammarRule([NP],[Adj,NP]));
 naturalRules.push(new GrammarRule([NP],[N]));
@@ -424,6 +460,13 @@ class Parser {
 		this.rules = ruleList;
 		this.rootToken = rootToken;
 		this.tokenStream=tokStr;
+		this.tree=new TreeNode;
+		this.activeNode=null;
+		this.currentLength=0;
+	}
+	changeString(str){
+		this.tokenStream.changeString(str);
+		this.stacks = [];
 		this.tree=new TreeNode;
 		this.activeNode=null;
 		this.currentLength=0;
@@ -510,3 +553,35 @@ function getTokenRules(token, rules){
 }
 
 var naturalParser=new Parser(standardStreamFactory("the dog bite the man"),naturalRules,S)
+
+function stringifyGrammarTree(tree, tokStr){
+	var openingTags = 
+		'<span class="grammar outer" data-type="'+
+		tree.attrib["type"]+
+		'"><span class="grammar inner">';
+	var closingTags='</span></span>';
+	var start = tree.attrib["startPos"];
+	var end = tree.attrib["endPos"];
+	var content;
+	if(tree.attrib["index"]!==undefined){
+		var strStart = tokStr.getTokenStringPos(start);
+		var strEnd = tokStr.getTokenStringPos(end);
+		content=tokStr.str.substr(strStart,strEnd-strStart);
+	}else{
+		content="";
+		for(var node of tree.subnodes){
+			content+=stringifyGrammarTree(node, tokStr);
+		}
+	}
+	return openingTags+content+closingTags;
+}
+
+function displayString(str){
+	naturalParser.changeString(str)
+	out=naturalParser.parse();
+	document.getElementById("parseString").innerHTML=stringifyGrammarTree(out,naturalParser.tokenStream);
+}
+
+$(document).ready(function(){
+	displayString("the big man roughly bites the little dog");
+});
