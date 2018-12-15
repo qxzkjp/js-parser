@@ -15,14 +15,14 @@ class TreeNode {
 
   remove(subNode) {
     if (subNode.parent === this) {
-      var idx = this.subnodes.indexOf(subNode);
+      let idx = this.subnodes.indexOf(subNode);
       this.subnodes.splice(idx, 1);
       subNode.parent = null;
     }
   }
 
   replace(newNode) {
-    var idx = this.parent.subnodes.indexOf(this);
+    let idx = this.parent.subnodes.indexOf(this);
     this.parent.subnodes.splice(idx, 1, newNode);
     if (newNode.parent != null) {
       newNode.parent.remove(newNode);
@@ -42,7 +42,7 @@ class TreeNode {
 
 class Token {
   constructor(type, data, trueStr, skipped) {
-    this.type    = type;
+    this.type    = parseInt(type);
     this.value   = data;
     this.trueStr = trueStr;
     this.skipped = skipped;
@@ -81,7 +81,7 @@ class TokenStream {
   }
 
   getToken() {
-    var ret = this.peekToken();
+    let ret = this.peekToken();
     if (ret != null) {
       ++this.pos;
     }
@@ -92,18 +92,18 @@ class TokenStream {
     if (this.pos < this.toklist.length) {
       return this.toklist[this.pos];
     } else {
-      for (var idx = 0; idx < this.regexpList.length; ++idx) {
-        var pttn  = this.regexpList[idx];
-        var match = pttn.exec(this.str.substring(this.strpos));
+      for (let idx = 0; idx < this.regexpList.length; ++idx) {
+        let pttn  = this.regexpList[idx];
+        let match = pttn.exec(this.str.substring(this.strpos));
         if (match != null) {
-          var val     = match[0];
-          var origVal = val;
-          var pos     = match["index"];
-          var endpos  = this.strpos + pos + val.length;
-          if (pos == 0) {
+          let val     = match[0];
+          let origVal = val;
+          let pos     = parseInt(match["index"]);
+          let endpos  = this.strpos + pos + val.length;
+          if (pos === 0) {
             this.strpos = endpos;
             if (this.postProcess !== undefined) {
-              var pair;
+              let pair;
               if (this.postProcess instanceof TokenFilter) {
                 pair = this.postProcess.apply(idx, val);
               } else {
@@ -133,7 +133,7 @@ class TokenStream {
     if (val >= 1) {
       this.pos -= val;
     }
-    if (val == 0) {
+    if (val === 0) {
       this.pos = 0;
     }
   }
@@ -149,22 +149,20 @@ class TokenStream {
   }
 
   loadPos(val) {
-    if (val <= this.toklist.length) {
+    if (val <= this.toklist.length)
       this.pos = val;
-    } else {
-      while (this.getToken() != null && this.toklist.length < val) ;
-    }
   }
 
   getTokenStringPos(idx) {
-    var count  = 0;
-    var length = 0;
-    for (var token of this.trueTokList) {
-      if (count == idx && token.skipped == false) {
+    idx = parseInt(idx);
+    let count  = 0;
+    let length = 0;
+    for (let token of this.trueTokList) {
+      if (count === idx && token.skipped === false) {
         break;
       }
       length += token.length;
-      if (token.skipped != true) {
+      if (token.skipped !== true) {
         ++count;
       }
     }
@@ -172,13 +170,13 @@ class TokenStream {
   }
 }
 
-var TOK_WSP = 0;
-var TOK_ORD = 1;
-var TOK_WRD = 2;
-var TOK_NUM = 3;
-var TOK_PCT = 4;
+let TOK_WSP = 0;
+let TOK_ORD = 1;
+let TOK_WRD = 2;
+let TOK_NUM = 3;
+let TOK_PCT = 4;
 
-var numberMap = {
+let numberMap = {
   "a"     : [TOK_NUM, 1],
   "an"    : [TOK_NUM, 1],
   "one"   : [TOK_NUM, 1],
@@ -195,7 +193,7 @@ var numberMap = {
   "twelve": [TOK_NUM, 12]
 };
 
-var ordinalMap = {
+let ordinalMap = {
   "first"   : [TOK_ORD, 1],
   "second"  : [TOK_ORD, 2],
   "third"   : [TOK_ORD, 3],
@@ -226,7 +224,7 @@ class TokenFilter {
       //skip this token
       return -1;
     }
-    for (var list of this.listOfMaps) {
+    for (let list of this.listOfMaps) {
       if (list[val] !== undefined) {
         return list[val];
       }
@@ -287,8 +285,8 @@ function standardStreamFactory(str) {
 
 class GrammarRule {
   /**
-   * @param {Token[]} lhs
-   * @param {Token[]} rhs
+   * @param {GrammarToken[]} lhs
+   * @param {GrammarToken[]} rhs
    */
   constructor(lhs, rhs) {
     if (lhs.length > 1) {
@@ -379,7 +377,7 @@ class GrammarProperties {
   }
 
   clone() {
-    return new GrammarProperties(this.idx, this.attr);
+    return new GrammarProperties(this.index, this.attr);
   }
 }
 
@@ -387,16 +385,17 @@ class TreeMap {
   constructor(nameList, att = {}, streamFactory = standardStreamFactory) {
     this.tree          = [];
     this.streamFactory = streamFactory;
-    for (var idx in nameList) {
-      this.addIndex(nameList[idx], new GrammarProperties(parseInt(idx), att));
+    for (let idx in nameList) {
+      if(nameList.hasOwnProperty(idx))
+        this.addIndex(nameList[idx], new GrammarProperties(parseInt(idx), att));
     }
   }
 
   addIndex(name, idx) {
-    var stack  = this.tree;
-    var tokStr = this.streamFactory(name);
+    let stack  = this.tree;
+    let tokStr = this.streamFactory(name);
     while (tokStr.peekToken() != null) {
-      var word = tokStr.getToken().value;
+      let word = tokStr.getToken().value;
       if (stack[word] === undefined) {
         stack[word] = [];
       }
@@ -418,7 +417,7 @@ class TreeMap {
   }
 
   addSynonym(name, nameInMap, att = {}) {
-    var idx = this.contains(this.streamFactory(nameInMap));
+    let idx = this.contains(this.streamFactory(nameInMap));
     if (!(idx instanceof Array)) {
       return false;
     }
@@ -427,28 +426,28 @@ class TreeMap {
 
   contains(tokStr) {
     //check if a token string has a name in the list
-    var stack   = [];
-    var current = this.tree;
-    var oldPos  = tokStr.savePos();
+    let stack   = [];
+    let current = this.tree;
+    // let oldPos  = tokStr.savePos();
     while (tokStr.peekToken() != null) {
-      var token = tokStr.getToken();
+      let token = tokStr.getToken();
       if (current[token.value] !== undefined) {
-        stack.push(current[token.value])
+        stack.push(current[token.value]);
         current = current[token.value];
       } else {
         tokStr.rewind(); //un-pop previous token
         break;
       }
     }
-    while (current[""] == undefined) {
+    while (current[""] === undefined) {
       current = stack.pop();
       tokStr.rewind();
-      if (stack.length == 0) {
+      if (stack.length === 0) {
         current = undefined;
         break;
       }
     }
-    if (current != undefined) {
+    if (current !== undefined) {
       return current[""];
     } else {
       return null;
@@ -456,7 +455,7 @@ class TreeMap {
   }
 }
 
-var names = new TreeMap([
+let names = new TreeMap([
   "ravenous bugblatter beast of traal",
   "ravenous bugblatter beast of traal during the night time",
   "ford prefect",
@@ -467,29 +466,29 @@ var names = new TreeMap([
 names.addSynonym("trillian", "tricia marie mcmillan");
 names.addSynonym("president of the galaxy", "zaphod beeblebrox");
 
-var thirdPersonSingularPresent = {
+let thirdPersonSingularPresent = {
   "subjectNumber": 1,
   "subjectPerson": 3,
   "tense"        : "present"
 };
 
-var firstPersonSingularPresent = {
+let firstPersonSingularPresent = {
   "subjectNumber": 1,
   "subjectPerson": 1,
   "tense"        : "present"
 };
 
-var thirdPersonSingularNoun = {
+let thirdPersonSingularNoun = {
   "number": 1,
   "person": 3
 };
 
-var thirdPersonPluralNoun = {
+let thirdPersonPluralNoun = {
   "number": 2,
   "person": 3
 };
 
-var nounMap = new TreeMap([
+let nounMap = new TreeMap([
   "cat",
   "dog",
   "alice",
@@ -502,7 +501,7 @@ var nounMap = new TreeMap([
 
 nounMap.addSynonym("men", "man", thirdPersonPluralNoun);
 
-var verbMap = new TreeMap([
+let verbMap = new TreeMap([
   "hit",
   "bite",
   "kick",
@@ -514,7 +513,7 @@ verbMap.addSynonym("bites", "bite", thirdPersonSingularPresent);
 verbMap.addSynonym("kicks", "kick", thirdPersonSingularPresent);
 verbMap.addSynonym("kisses", "kiss", thirdPersonSingularPresent);
 
-var determinerMap = new TreeMap([
+let determinerMap = new TreeMap([
   "the",
   "a",
   "an",
@@ -526,7 +525,7 @@ var determinerMap = new TreeMap([
   "its"
 ]);
 
-var adjectiveMap = new TreeMap([
+let adjectiveMap = new TreeMap([
   "red",
   "blue",
   "hot",
@@ -539,7 +538,7 @@ var adjectiveMap = new TreeMap([
   "gentle"
 ]);
 
-var adverbMap = new TreeMap([
+let adverbMap = new TreeMap([
   "quickly",
   "slowly",
   "roughly",
@@ -550,7 +549,7 @@ var adverbMap = new TreeMap([
 
 numberMap = {
   "contains": function (tokStr) {
-    if (tokStr.peekToken().type == TOK_NUM) {
+    if (tokStr.peekToken().type === TOK_NUM) {
       return [tokStr.getToken().val];
     } else {
       return null;
@@ -585,20 +584,20 @@ naturalRules.push(new GrammarRule([DP], [NP]));
 
 class Parser {
   constructor(tokStr, ruleList, rootToken) {
-    this.stacks        = [];
+    // this.stacks        = [];
     this.rules         = ruleList;
     this.rootToken     = rootToken;
     this.tokenStream   = tokStr;
-    this.tree          = new TreeNode;
-    this.activeNode    = null;
+    // this.tree          = new TreeNode;
+    // this.activeNode    = null;
     this.currentLength = 0;
   }
 
   changeString(str) {
     this.tokenStream.changeString(str);
-    this.stacks        = [];
-    this.tree          = new TreeNode;
-    this.activeNode    = null;
+    // this.stacks        = [];
+    // this.tree          = new TreeNode;
+    // this.activeNode    = null;
     this.currentLength = 0;
   }
 
@@ -611,7 +610,7 @@ class Parser {
     let node      = new TreeNode();
     let oldPos    = this.tokenStream.savePos();
     let success;
-    let oldLength = this.length;
+    let oldLength = this.currentLength;
     for (let rule of ruleset) {
       let newLength = oldLength + rule.rhs.length - 1;
       if (newLength > this.tokenStream.getUpperLimit()) {
@@ -693,24 +692,24 @@ function getTokenRules(token, rules) {
   return ret;
 }
 
-var naturalParser = new Parser(standardStreamFactory("the dog bite the man"), naturalRules, S);
+let naturalParser = new Parser(standardStreamFactory("the dog bite the man"), naturalRules, S);
 
 function stringifyGrammarTree(tree, tokStr) {
-  var openingTags =
+  let openingTags =
         '<span class="grammar outer" data-type="' +
         tree.attrib["type"] +
         '"><span class="grammar inner">';
-  var closingTags = '</span></span>';
-  var start       = tree.attrib["startPos"];
-  var end         = tree.attrib["endPos"];
-  var content;
+  let closingTags = '</span></span>';
+  let start       = tree.attrib["startPos"];
+  let end         = tree.attrib["endPos"];
+  let content;
   if (tree.attrib["index"] !== undefined) {
-    var strStart = tokStr.getTokenStringPos(start);
-    var strEnd   = tokStr.getTokenStringPos(end);
+    let strStart = tokStr.getTokenStringPos(start);
+    let strEnd   = tokStr.getTokenStringPos(end);
     content      = tokStr.str.substr(strStart, strEnd - strStart);
   } else {
     content = "";
-    for (var node of tree.subnodes) {
+    for (let node of tree.subnodes) {
       content += stringifyGrammarTree(node, tokStr);
     }
   }
@@ -719,7 +718,7 @@ function stringifyGrammarTree(tree, tokStr) {
 
 function displayString(str) {
   naturalParser.changeString(str);
-  var out = naturalParser.parse();
+  let out = naturalParser.parse();
   if (out != null) {
     document.getElementById("parseString").innerHTML = stringifyGrammarTree(out, naturalParser.tokenStream);
   } else {
@@ -729,14 +728,14 @@ function displayString(str) {
 
 $(document).ready(function () {
   displayString("the big man roughly bites the little dog");
-  $("#parseButton").on("click", function (evt) {
+  $("#parseButton").on("click", function () {
     displayString($("#parseBox").val());
   });
 });
 
 function cloneAttr(attr) {
-  var ret = {};
-  for (var key in attr) {
+  let ret = {};
+  for (let key in attr) {
     if (attr.hasOwnProperty(key)) {
       ret[key] = attr[key];
     }
