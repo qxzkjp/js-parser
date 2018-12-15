@@ -249,7 +249,6 @@ function ordinalStripper(idx, val) {
 
 let tokenValuators      = [];
 tokenValuators[TOK_ORD] = ordinalStripper;
-tokenValuators[TOK_NUM] = ordinalStripper;
 
 let standardFilter = new TokenFilter([TOK_WSP], [numberMap, ordinalMap], tokenValuators, true);
 
